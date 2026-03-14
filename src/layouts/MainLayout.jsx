@@ -27,8 +27,11 @@ import {
   LogOut,
   User,
   ShoppingCart,
+  Brain,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/utils/utils'
+import { useRole } from '@/hooks/useRole'
 
 const navLinkClass = ({ isActive }) =>
   cn(
@@ -41,13 +44,13 @@ const navLinkClass = ({ isActive }) =>
 export default function MainLayout() {
   const navigate = useNavigate()
   const { user, signOut } = useAuthStore()
+  const { isManager, role } = useRole()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const userMeta = user?.user_metadata
   const displayName = userMeta?.full_name || user?.email || ''
   const avatarLetter = (displayName[0] || '?').toUpperCase()
   const userEmail = user?.email || ''
-  const userRole = userMeta?.role || 'staff'
 
   const handleLogout = async () => {
     await signOut()
@@ -84,25 +87,31 @@ export default function MainLayout() {
           <DropdownMenuItem onClick={() => { navigate('/operations/deliveries'); mobile && setMobileOpen(false) }}>
             <ArrowRightLeft className="h-4 w-4 mr-2" /> Deliveries
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { navigate('/operations/adjustments'); mobile && setMobileOpen(false) }}>
-            <ArrowLeftRight className="h-4 w-4 mr-2" /> Adjustments
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { navigate('/operations/transfers'); mobile && setMobileOpen(false) }}>
-            <ArrowLeftRight className="h-4 w-4 mr-2" /> Transfers
-          </DropdownMenuItem>
-
+          {/* Manager-only operations */}
+          {isManager && (
+            <>
+              <DropdownMenuItem onClick={() => { navigate('/operations/adjustments'); mobile && setMobileOpen(false) }}>
+                <ArrowLeftRight className="h-4 w-4 mr-2" /> Adjustments
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { navigate('/operations/transfers'); mobile && setMobileOpen(false) }}>
+                <ArrowLeftRight className="h-4 w-4 mr-2" /> Transfers
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
       {/* Products */}
-      <NavLink
-        to="/products"
-        className={navLinkClass}
-        onClick={() => mobile && setMobileOpen(false)}
-      >
-        <ShoppingCart className="h-4 w-4" />
-        Products
-      </NavLink>
+      {isManager && (
+        <NavLink
+          to="/products"
+          className={navLinkClass}
+          onClick={() => mobile && setMobileOpen(false)}
+        >
+          <ShoppingCart className="h-4 w-4" />
+          Products
+        </NavLink>
+      )}
 
       {/* Stock */}
       <NavLink
@@ -124,24 +133,36 @@ export default function MainLayout() {
         Move History
       </NavLink>
 
-      {/* Settings dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-foreground/70 hover:text-foreground hover:bg-accent transition-colors">
-            <Settings className="h-4 w-4" />
-            Settings
-            <ChevronDown className="h-3 w-3" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => { navigate('/settings/warehouses'); mobile && setMobileOpen(false) }}>
-            <Warehouse className="h-4 w-4 mr-2" /> Warehouses
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { navigate('/settings/locations'); mobile && setMobileOpen(false) }}>
-            <MapPin className="h-4 w-4 mr-2" /> Locations
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* AI Insights */}
+      <NavLink
+        to="/ai-insights"
+        className={navLinkClass}
+        onClick={() => mobile && setMobileOpen(false)}
+      >
+        <Brain className="h-4 w-4" />
+        AI Insights
+      </NavLink>
+
+      {/* Settings dropdown — Manager only */}
+      {isManager && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-foreground/70 hover:text-foreground hover:bg-accent transition-colors">
+              <Settings className="h-4 w-4" />
+              Settings
+              <ChevronDown className="h-3 w-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => { navigate('/settings/warehouses'); mobile && setMobileOpen(false) }}>
+              <Warehouse className="h-4 w-4 mr-2" /> Warehouses
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { navigate('/settings/locations'); mobile && setMobileOpen(false) }}>
+              <MapPin className="h-4 w-4 mr-2" /> Locations
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </>
   )
 
@@ -159,12 +180,23 @@ export default function MainLayout() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel className="flex items-center gap-2">
+                  My Account
+                  {isManager && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
+                      <ShieldCheck className="h-3 w-3" /> Manager
+                    </span>
+                  )}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-medium">{displayName}</p>
                   <p className="text-xs text-muted-foreground">{userEmail}</p>
-                  <p className="text-xs text-muted-foreground capitalize mt-0.5">Role: {userRole}</p>
+                  <p className="text-xs font-medium capitalize mt-0.5">
+                    <span className={role === 'manager' ? 'text-violet-600' : 'text-blue-500'}>
+                      {role === 'manager' ? '🛡 Manager' : '👤 Staff'}
+                    </span>
+                  </p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>

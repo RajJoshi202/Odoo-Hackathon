@@ -24,6 +24,7 @@ import StockPage from '@/pages/StockPage'
 import MoveHistoryPage from '@/pages/MoveHistoryPage'
 import WarehousesPage from '@/pages/WarehousesPage'
 import LocationsPage from '@/pages/LocationsPage'
+import AIInsightsPage from '@/pages/AIInsightsPage'
 
 export default function App() {
   const initialize = useAuthStore((s) => s.initialize)
@@ -47,22 +48,38 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="dashboard" element={<Navigate to="/" replace />} />
 
+          {/* ── Staff + Manager ── */}
           <Route path="operations/receipts" element={<ReceiptsPage />} />
           <Route path="operations/receipts/:id" element={<ReceiptDetailsPage />} />
 
           <Route path="operations/deliveries" element={<DeliveriesPage />} />
           <Route path="operations/deliveries/:id" element={<DeliveryDetailsPage />} />
 
-          <Route path="operations/adjustments" element={<AdjustmentsPage />} />
-          <Route path="operations/transfers" element={<TransfersPage />} />
-
-          <Route path="products" element={<ProductsPage />} />
-
           <Route path="stock" element={<StockPage />} />
           <Route path="move-history" element={<MoveHistoryPage />} />
+          <Route path="ai-insights" element={<AIInsightsPage />} />
 
-          <Route path="settings/warehouses" element={<WarehousesPage />} />
-          <Route path="settings/locations" element={<LocationsPage />} />
+          {/* ── Manager only ── */}
+          <Route
+            path="operations/adjustments"
+            element={<ProtectedRoute requiredRole="manager"><AdjustmentsPage /></ProtectedRoute>}
+          />
+          <Route
+            path="operations/transfers"
+            element={<ProtectedRoute requiredRole="manager"><TransfersPage /></ProtectedRoute>}
+          />
+          <Route
+            path="products"
+            element={<ProtectedRoute requiredRole="manager"><ProductsPage /></ProtectedRoute>}
+          />
+          <Route
+            path="settings/warehouses"
+            element={<ProtectedRoute requiredRole="manager"><WarehousesPage /></ProtectedRoute>}
+          />
+          <Route
+            path="settings/locations"
+            element={<ProtectedRoute requiredRole="manager"><LocationsPage /></ProtectedRoute>}
+          />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

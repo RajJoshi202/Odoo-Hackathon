@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { supabase } from '@/supabase/client'
@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2 } from 'lucide-react'
+import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/select'
+import { Loader2, ShieldCheck, User } from 'lucide-react'
 
 const signupSchema = z
   .object({
@@ -20,6 +21,7 @@ const signupSchema = z
       .regex(/^[a-zA-Z0-9]+$/, 'Only letters and numbers allowed'),
     full_name: z.string().min(1, 'Full Name is required'),
     email: z.string().email('Invalid email format'),
+    role: z.enum(['manager', 'staff'], { required_error: 'Select a role' }),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
@@ -40,9 +42,11 @@ export default function SignupPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(signupSchema),
+    defaultValues: { role: 'staff' },
   })
 
   const onSubmit = async (values) => {
@@ -61,13 +65,15 @@ export default function SignupPage() {
       return
     }
 
-    const { error } = await supabase.auth.signUp({
+    // Sign up — pass role in user_metadata so the DB trigger can use it
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
       options: {
         data: {
           login_id: values.login_id,
           full_name: values.full_name,
+          role: values.role,           // ← role now passed to metadata
         },
       },
     })
@@ -78,8 +84,18 @@ export default function SignupPage() {
       return
     }
 
-    toast.success('Check your email to confirm your account')
+    // Also update the profiles table directly in case the trigger
+    // doesn't use the role from metadata (trigger default is 'staff')
+    if (signUpData?.user) {
+      await supabase
+        .from('profiles')
+        .update({ role: values.role })
+        .eq('id', signUpData.user.id)
+    }
+
+    toast.success('Account created! Check your email to confirm.')
     setLoading(false)
+    navigate('/login')
   }
 
   return (
@@ -91,6 +107,7 @@ export default function SignupPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
             {/* Login ID */}
             <div className="space-y-2">
               <Label htmlFor="login_id">Login ID</Label>
@@ -116,6 +133,50 @@ export default function SignupPage() {
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
+            </div>
+
+            {/* Role selector */}
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Controller
+                control={control}
+                name="role"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="role">
+                      {field.value === 'manager' ? (
+                        <span className="flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4 text-violet-600" /> Manager
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-blue-500" /> Staff
+                        </span>
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manager">
+                        <span className="flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4 text-violet-600" />
+                          Manager — Full access
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="staff">
+                        <span className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-blue-500" />
+                          Staff — Limited access
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.role && (
+                <p className="text-sm text-destructive">{errors.role.message}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Manager can manage products, warehouses, and settings. Staff can handle day-to-day operations.
+              </p>
             </div>
 
             {/* Password */}
