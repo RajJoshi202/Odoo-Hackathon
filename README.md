@@ -205,7 +205,9 @@ Developed for Odoo Hackathon
 
 Snehal Mishra
 
-Mahek
+Yashvi Gaadhiya
+
+Mahek Trambadia
 
 Raj Joshi
 
