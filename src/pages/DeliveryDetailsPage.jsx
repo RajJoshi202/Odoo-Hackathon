@@ -185,6 +185,27 @@ export default function DeliveryDetailsPage() {
     }
 
     let deliveryId = delivery.id
+    let oldLocationId = null
+    let oldLines = []
+
+    if (!isNew && deliveryId) {
+      const { data: oldDel } = await supabase.from('deliveries').select('from_location_id').eq('id', deliveryId).single()
+      oldLocationId = oldDel?.from_location_id
+      const { data: oldLns } = await supabase.from('delivery_lines').select('product_id, quantity').eq('delivery_id', deliveryId)
+      oldLines = oldLns || []
+    }
+
+    // 1. Unreserve old lines (Refund free_to_use of previous state)
+    if (oldLocationId && oldLines.length > 0) {
+      for (const line of oldLines) {
+        if (!line.product_id) continue
+        const { data: existing } = await supabase.from('stock')
+          .select('id, free_to_use').eq('product_id', line.product_id).eq('location_id', oldLocationId).maybeSingle()
+        if (existing) {
+          await supabase.from('stock').update({ free_to_use: existing.free_to_use + line.quantity }).eq('id', existing.id)
+        }
+      }
+    }
 
     if (isNew || !deliveryId) {
       const { data, error } = await supabase.from('deliveries').insert(payload).select().single()
@@ -223,6 +244,17 @@ export default function DeliveryDetailsPage() {
     if (linePayloads.length > 0) {
       const { error } = await supabase.from('delivery_lines').insert(linePayloads)
       if (error) toast.error(error.message)
+    }
+
+    // 2. Reserve new lines (Deduct free_to_use for new state)
+    if (delivery.from_location_id && linePayloads.length > 0) {
+      for (const line of linePayloads) {
+        const { data: existing } = await supabase.from('stock')
+          .select('id, free_to_use').eq('product_id', line.product_id).eq('location_id', delivery.from_location_id).maybeSingle()
+        if (existing) {
+          await supabase.from('stock').update({ free_to_use: Math.max(0, existing.free_to_use - line.quantity) }).eq('id', existing.id)
+        }
+      }
     }
 
     toast.success('Saved')
@@ -268,7 +300,7 @@ export default function DeliveryDetailsPage() {
             .from('stock')
             .update({
               on_hand: Math.max(0, existing.on_hand - qty),
-              free_to_use: Math.max(0, existing.free_to_use - qty),
+              // free_to_use was already decreased during reservation (save/create step)
             })
             .eq('id', existing.id)
         }
@@ -309,6 +341,19 @@ export default function DeliveryDetailsPage() {
 
   // ── Cancel ──
   const handleCancel = async () => {
+    // Restore free_to_use reservations before cancelling
+    if (delivery.from_location_id && lines.length > 0) {
+      for (const line of lines) {
+        if (!line.product_id) continue
+        const qty = Number(line.quantity) || 0
+        const { data: existing } = await supabase.from('stock')
+          .select('id, free_to_use').eq('product_id', line.product_id).eq('location_id', delivery.from_location_id).maybeSingle()
+        if (existing) {
+          await supabase.from('stock').update({ free_to_use: existing.free_to_use + qty }).eq('id', existing.id)
+        }
+      }
+    }
+
     await supabase.from('deliveries').update({ status: 'Canceled' }).eq('id', delivery.id)
     await supabase.from('activity_log').insert({
       entity_type: 'delivery',
@@ -465,12 +510,19 @@ export default function DeliveryDetailsPage() {
         </div>
         <div className="space-y-2">
           <Label>Operation Type</Label>
-          <Input
+          <Select
             value={delivery.operation_type}
-            onChange={(e) => setDelivery((d) => ({ ...d, operation_type: e.target.value }))}
-            placeholder="e.g. Standard Delivery"
+            onValueChange={(v) => setDelivery((d) => ({ ...d, operation_type: v }))}
             disabled={isReadOnly}
-          />
+          >
+            <SelectTrigger>
+              {delivery.operation_type || 'Select operation type'}
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Customer Delivery">Customer Delivery</SelectItem>
+              <SelectItem value="Return to Supplier">Return to Supplier</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label>Responsible</Label>
