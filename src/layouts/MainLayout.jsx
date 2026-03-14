@@ -90,11 +90,19 @@ export default function MainLayout() {
           <DropdownMenuItem onClick={() => { navigate('/operations/transfers'); mobile && setMobileOpen(false) }}>
             <ArrowLeftRight className="h-4 w-4 mr-2" /> Transfers
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { navigate('/products'); mobile && setMobileOpen(false) }}>
-            <ShoppingCart className="h-4 w-4 mr-2" /> Products
-          </DropdownMenuItem>
+
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Products */}
+      <NavLink
+        to="/products"
+        className={navLinkClass}
+        onClick={() => mobile && setMobileOpen(false)}
+      >
+        <ShoppingCart className="h-4 w-4" />
+        Products
+      </NavLink>
 
       {/* Stock */}
       <NavLink
@@ -142,26 +150,15 @@ export default function MainLayout() {
       {/* ── Top Navigation Bar ── */}
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-14 items-center px-4 md:px-6">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 mr-6">
-            <Package className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold hidden sm:inline-block">CoreInventory</span>
-          </Link>
-
-          {/* Desktop nav links */}
-          <nav className="hidden md:flex items-center gap-1 flex-1">
-            <NavContent />
-          </nav>
-
-          {/* Right side: user avatar */}
-          <div className="ml-auto flex items-center gap-2">
+          {/* Left side: user avatar */}
+          <div className="flex items-center gap-2 mr-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity">
                   {avatarLetter}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <div className="px-2 py-1.5">
@@ -176,8 +173,21 @@ export default function MainLayout() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
 
-            {/* Mobile hamburger */}
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 mr-6">
+            <Package className="h-6 w-6 text-primary" />
+            <span className="text-lg font-bold hidden sm:inline-block">CoreInventory</span>
+          </Link>
+
+          {/* Desktop nav links */}
+          <nav className="hidden md:flex items-center gap-1 flex-1">
+            <NavContent />
+          </nav>
+
+          {/* Right side: Mobile hamburger */}
+          <div className="ml-auto flex items-center gap-2">
             <button
               className="md:hidden ml-2 p-2 rounded-md hover:bg-accent transition-colors"
               onClick={() => setMobileOpen((o) => !o)}
